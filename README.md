@@ -1,6 +1,6 @@
 # RingerX
 
-RingerX is an Android application that allows you to automatically schedule changes to your phone's ringer mode. Set specific times to switch between Normal, Vibrate, and Silent modes, ensuring you never miss an important call or get disturbed at the wrong time.
+An Xposed Hook that allows you to automatically schedule changes to your phone's ringer mode. Set specific times to switch between Normal, Vibrate, and Silent modes, ensuring you never miss an important call or get disturbed at the wrong time.
 
 ## Features
 
