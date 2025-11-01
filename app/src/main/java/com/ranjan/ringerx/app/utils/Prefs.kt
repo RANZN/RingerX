@@ -6,13 +6,12 @@ import android.content.SharedPreferences
 import com.ranjan.ringerx.app.data.model.RingerEvent
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import androidx.core.content.edit
 import java.io.File
 
 class Prefs(context: Context) {
 
     private val prefs: SharedPreferences =
-        context.getSharedPreferences(PREFS_FILE, Context.MODE_WORLD_READABLE)
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
 
     companion object {
         const val KEY_EVENTS_JSON = "ringer_events_json"
