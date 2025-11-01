@@ -27,8 +27,8 @@ fun RingerSettingsScreen(
     ) {
         items(uiState.events, key = { it.id }) {
             RingerItemUI(
-                time = it.getTimeString(),
-                mode = it.getModeName(),
+                time = it.getTime(),
+                mode = it.getMode(),
                 modifier = Modifier.fillMaxWidth(),
                 onDelete = { onAction(RingerSettingsViewModel.Action.DeleteItem(it)) }
             )

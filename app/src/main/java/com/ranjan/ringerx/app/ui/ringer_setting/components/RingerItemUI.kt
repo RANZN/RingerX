@@ -50,19 +50,16 @@ fun RingerItemUI(
 
     val progress = dismissState.progress
 
-    // Animate background shade
     val bgColor by animateColorAsState(
         targetValue = Color.Red.copy(alpha = 0.4f + (progress * 0.6f)),
         label = "SwipeBgColor"
     )
 
-    // Animate icon scale (0.7 → 1.2)
     val iconScale by animateFloatAsState(
         targetValue = 0.7f + (progress * 0.5f),
         label = "IconScale"
     )
 
-    // Animate icon alpha (fade in)
     val iconAlpha by animateFloatAsState(
         targetValue = 0.3f + (progress * 0.7f),
         label = "IconAlpha"

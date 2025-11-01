@@ -1,6 +1,5 @@
 package com.ranjan.ringerx.app.data.model
 
-import android.annotation.SuppressLint
 import android.media.AudioManager
 import kotlinx.serialization.Serializable
 
@@ -14,7 +13,7 @@ data class RingerEvent(
     /**
      * Helper function to get a readable mode name for the UI.
      */
-    fun getModeName(): String {
+    fun getMode(): String {
         return when (mode) {
             AudioManager.RINGER_MODE_NORMAL -> "Sound"
             AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
@@ -26,7 +25,7 @@ data class RingerEvent(
     /**
      * Helper function to get a readable time string for the UI (e.g., "9:05 AM").
      */
-    fun getTimeString(): String {
+    fun getTime(): String {
         val amPm = if (hour < 12) "AM" else "PM"
         val displayHour = if (hour == 0 || hour == 12) 12 else hour % 12
         val displayMinute = minute.toString().padStart(2, '0')

@@ -18,7 +18,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ranjan.ringerx.R
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,34 +30,29 @@ fun AddScheduleDialog(
     onSave: (hour: Int, minute: Int, mode: Int) -> Unit
 ) {
     val cal = Calendar.getInstance()
-    // 1. Remember the time state
     val timeState = rememberTimePickerState(
         initialHour = cal.get(Calendar.HOUR_OF_DAY),
         initialMinute = cal.get(Calendar.MINUTE) + 1,
         is24Hour = false
     )
 
-    // 2. Remember the selected ringer mode
     var selectedMode by remember {
         mutableIntStateOf(AudioManager.RINGER_MODE_NORMAL)
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Schedule") },
+        title = { Text(stringResource(R.string.add_schedule)) },
 
-        // 3. The content is a Column with the TimePicker and Radio buttons
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // The Time Picker
                 TimePicker(state = timeState)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // The Radio Button Group
                 ModeRadioButtonGroup(
                     selectedMode = selectedMode,
                     onModeSelected = { selectedMode = it }
@@ -63,18 +60,16 @@ fun AddScheduleDialog(
             }
         },
 
-        // 4. The Save and Cancel buttons
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                // Pass all the data back on save
                 onSave(timeState.hour, timeState.minute, selectedMode)
             }) {
-                Text("Save")
+                Text(stringResource(R.string.save))
             }
         }
     )

@@ -80,10 +80,8 @@ class RingerSettingsViewModel(
     /**
      * Saves the provided event list to SharedPreferences in the background.
      */
-    private fun saveEvents(events: List<RingerEvent>) {
-        viewModelScope.launch {
-            prefs.saveEvents(events)
-        }
+    private fun saveEvents(events: List<RingerEvent>) = viewModelScope.launch {
+        prefs.saveEvents(events)
     }
 
     data class UiState(

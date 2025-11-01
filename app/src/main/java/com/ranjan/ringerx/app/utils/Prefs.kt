@@ -3,12 +3,13 @@ package com.ranjan.ringerx.app.utils
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.Uri
+import androidx.core.content.edit
 import com.ranjan.ringerx.app.data.model.RingerEvent
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.File
 
-class Prefs(context: Context) {
+class Prefs(private val context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
@@ -18,28 +19,13 @@ class Prefs(context: Context) {
         const val PREFS_FILE = "ringer_prefs"
     }
 
-    /**
-     * This is the function you asked for.
-     * It reads the JSON string from storage and converts it back
-     * into a List<RingerEvent>.
-     */
     fun loadEvents(): List<RingerEvent> {
-        // 1. Read the saved JSON string. Default to null if not found.
-        val jsonString = prefs.getString(KEY_EVENTS_JSON, null)
-
-        return if (jsonString != null) {
-            try {
-                // 2. Use the Json library to parse the string into a List
-                Json.decodeFromString(jsonString)
-            } catch (e: Exception) {
-                // 3. If parsing fails (e.g., corrupted data), return an empty list
-                e.printStackTrace()
-                listOf()
-            }
-        } else {
-            // 4. If no string was saved, return an empty list
-            listOf()
-        }
+        val jsonString = prefs.getString(KEY_EVENTS_JSON, null) ?: return emptyList()
+        return runCatching {
+            Json.decodeFromString<List<RingerEvent>>(jsonString)
+        }.onFailure {
+            it.printStackTrace()
+        }.getOrDefault(emptyList())
     }
 
     /**
@@ -47,15 +33,14 @@ class Prefs(context: Context) {
      * It converts the list into a JSON string and saves it.
      */
     fun saveEvents(events: List<RingerEvent>) {
-        // 1. Convert the list of events into one long JSON string
         val jsonString = Json.encodeToString(events)
 
-        // 2. Save that string into SharedPreferences
-        prefs.edit()
-            .putString(KEY_EVENTS_JSON, jsonString)
-            .commit() // Do NOT use apply()
+        prefs.edit { putString(KEY_EVENTS_JSON, jsonString) }
 
-        File("/data/data/$PACKAGE_NAME/shared_prefs/$PREFS_FILE.xml")
-            .setReadable(true, false)
+        val uri = Uri.parse("content://$PACKAGE_NAME.prefs")
+
+        // Notify the system that the data at this URI has changed.
+        context.contentResolver.notifyChange(uri, null)
+
     }
 }
