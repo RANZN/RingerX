@@ -1,103 +1,106 @@
 package com.ranjan.ringerx.xposed.hook
 
+import android.app.NotificationManager
+import android.content.Context
 import android.media.AudioManager
+import android.net.Uri
 import android.util.Log
+import android.view.View
+import com.ranjan.ringerx.app.data.model.RingerEvent
 import com.ranjan.ringerx.app.utils.PACKAGE_NAME
-import com.ranjan.ringerx.app.utils.Prefs.Companion.KEY_EVENTS_JSON
-import com.ranjan.ringerx.app.utils.Prefs.Companion.PREFS_FILE
 import de.robv.android.xposed.IXposedHookLoadPackage
-import de.robv.android.xposed.callbacks.XC_LoadPackage
 import de.robv.android.xposed.XC_MethodHook
-import de.robv.android.xposed.XSharedPreferences
+import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
-import org.json.JSONArray
+import de.robv.android.xposed.callbacks.XC_LoadPackage
+import kotlinx.serialization.json.Json
 import java.util.Calendar
 
 class RingerHook : IXposedHookLoadPackage {
 
-    private var cachedEvents: List<RingerEventFromHook>? = null
-    private var lastSeenJson: String? = null
+    private var cachedEvents: List<RingerEvent> = emptyList()
+    private var lastCheckedMinute: Int = -1
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
 
         if (lpparam.packageName != "com.android.systemui") return
 
+        Log.i("RingerApp", "RingerX Hook loaded into SystemUI.")
         runCatching {
-            XposedHelpers.findAndHookMethod(
+            val clockClass = XposedHelpers.findClass(
                 "com.android.systemui.statusbar.policy.Clock",
-                lpparam.classLoader,
-                "onTimeChanged",
-                object : XC_MethodHook() {
+                lpparam.classLoader
+            )
+            val methodsToHook = clockClass.declaredMethods
+                .filter { it.name == "updateClock" }
+
+            methodsToHook.forEach { method ->
+                XposedBridge.hookMethod(method, object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         handleClockTick(param)
                     }
-                }
-            )
+                })
+            }
+            if (methodsToHook.isNotEmpty()) {
+                Log.i("RingerApp", "Hooked ${methodsToHook.size} updateClock method(s).")
+            } else {
+                Log.w("RingerApp", "No updateClock method found in Clock class.")
+            }
         }.onFailure {
-            Log.e("RingerApp", "Failed to hook Clock.onTimeChanged: ${it.message}")
+            Log.e("RingerApp", "Failed to hook Clock.onTimeChanged: $it")
         }
     }
 
     private fun handleClockTick(param: XC_MethodHook.MethodHookParam) {
+        val now = Calendar.getInstance()
+        val hour = now.get(Calendar.HOUR_OF_DAY)
+        val minute = now.get(Calendar.MINUTE)
+        if (minute == lastCheckedMinute) return
+        lastCheckedMinute = minute
 
-        // 1. Get the current time
-        val calendar = Calendar.getInstance()
-        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
-        val currentMinute = calendar.get(Calendar.MINUTE)
-
-        val audioManager = param.thisObject as AudioManager
-
-        // 2. Check for settings changes
-        try {
-            val prefs = XSharedPreferences(PACKAGE_NAME, PREFS_FILE)
-            val newJson = prefs.getString(KEY_EVENTS_JSON, "[]") ?: "[]"
-
-            // This is the optimization:
-            // Only re-parse the JSON if the string is different.
-            if (newJson != lastSeenJson) {
-                Log.i("RingerApp", "Settings changed! Re-parsing event list.")
-                cachedEvents = parseEvents(newJson)
-                lastSeenJson = newJson
-            }
-            // If the JSON is the same, we do nothing and use the fast cache.
-
-        } catch (e: Exception) {
-            Log.e("RingerApp", "Error reading or parsing prefs: ${e.message}")
-            cachedEvents = emptyList() // Clear cache on error
+        val context = (param.thisObject as? View)?.context ?: return
+        // Load + only update cache when data actually changes
+        val events = loadEventsFromProvider(context)
+        if (events != cachedEvents) {
+            cachedEvents = events
         }
 
-        // 3. Check for a match using the fast in-memory cache
-        val event = cachedEvents?.find { it.hour == currentHour && it.minute == currentMinute }
+        // Try to find matching event directly
+        val match = cachedEvents.find { it.hour == hour && it.minute == minute } ?: return
 
-        if (event != null) {
-            // 4. Take Action!
-            if (audioManager.ringerMode != event.mode) {
-                audioManager.ringerMode = event.mode
-                Log.i("RingerApp", "Match found in cache! Setting ringer mode to ${event.mode}")
-            }
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+
+        // Exit DND only when setting ringer to Normal/Vibrate to avoid "Silent = DND" issue.
+        // This prevents overriding manual DND activation by the user.
+        if (match.mode != AudioManager.RINGER_MODE_SILENT && notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL) {
+            notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+            Log.i("RingerApp", "Exited DND to set ringer mode.")
+        }
+
+        // Apply mode only if needed
+        if (audioManager.ringerMode != match.mode) {
+            audioManager.ringerMode = match.mode
+            Log.i("RingerApp", "Ringer mode changed to ${match.mode}")
         }
     }
 
-    private fun parseEvents(jsonString: String): List<RingerEventFromHook> {
-        val list = mutableListOf<RingerEventFromHook>()
-        try {
-            val events = JSONArray(jsonString)
-            for (i in 0 until events.length()) {
-                val event = events.getJSONObject(i)
-                list.add(
-                    RingerEventFromHook(
-                        hour = event.getInt("hour"),
-                        minute = event.getInt("minute"),
-                        mode = event.getInt("mode")
-                    )
-                )
-            }
-        } catch (e: Exception) {
-            Log.e("RingerApp", "Error parsing JSON: ${e.message}")
+
+    fun loadEventsFromProvider(context: Context): List<RingerEvent> {
+        val uri = Uri.parse("content://$PACKAGE_NAME.prefs")
+
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+            ?: return emptyList()
+
+        val json = cursor.use {
+            if (it.moveToFirst()) it.getString(0) else "[]"
         }
-        return list
+
+        return try {
+            Json.decodeFromString(json)
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
 }
-
-private data class RingerEventFromHook(val hour: Int, val minute: Int, val mode: Int)

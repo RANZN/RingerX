@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ranjan.ringerx.app.ui.ringer_setting.components.RingerItemUI
 
 @Composable
 fun RingerSettingsScreen(
@@ -24,13 +25,15 @@ fun RingerSettingsScreen(
             .fillMaxSize()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Top),
     ) {
         items(uiState.events, key = { it.id }) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(it.getTimeString())
-                Text(it.getModeName())
-            }
+            RingerItemUI(
+                time = it.getTimeString(),
+                mode = it.getModeName(),
+                modifier = Modifier.fillMaxWidth(),
+                onDelete = { onAction(RingerSettingsViewModel.Action.DeleteItem(it)) }
+            )
         }
     }
 }

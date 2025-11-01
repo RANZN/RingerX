@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,13 +33,13 @@ fun AddScheduleDialog(
     // 1. Remember the time state
     val timeState = rememberTimePickerState(
         initialHour = cal.get(Calendar.HOUR_OF_DAY),
-        initialMinute = cal.get(Calendar.MINUTE),
+        initialMinute = cal.get(Calendar.MINUTE) + 1,
         is24Hour = false
     )
 
     // 2. Remember the selected ringer mode
     var selectedMode by remember {
-        mutableStateOf(AudioManager.RINGER_MODE_NORMAL)
+        mutableIntStateOf(AudioManager.RINGER_MODE_NORMAL)
     }
 
     AlertDialog(

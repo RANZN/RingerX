@@ -27,14 +27,14 @@ fun RingerSettingsHost() {
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Auto-disable Vibrate Mode") }
+                title = { Text("Auto Change Ringer Mode") }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.handleAction(RingerSettingsViewModel.Action.AddScheduleClicked) }) {
                 Icon(Icons.Default.Add, contentDescription = "Add new schedule")
             }
-        },
+        }
     ) { innerPadding ->
         RingerSettingsScreen(
             uiState = uiState,

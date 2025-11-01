@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,31 +28,29 @@ fun ModeRadioButtonGroup(
         "Silent" to AudioManager.RINGER_MODE_SILENT
     )
 
-    // Arrange the radio buttons in a Row
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        modes.forEach { (name, mode) ->
-            Row(
-                // Make the whole Row clickable
-                modifier = Modifier
-                    .selectable(
-                        selected = (selectedMode == mode),
-                        onClick = { onModeSelected(mode) }
-                    )
-                    .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+        modes.forEachIndexed { index, (label, mode) ->
+            SegmentedButton(
+                selected = selectedMode == mode,
+                onClick = { onModeSelected(mode) },
+                shape = when (index) {
+                    0 -> SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = modes.size
+                    ) // auto rounded for first
+                    modes.lastIndex -> SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = modes.size
+                    ) // last item
+                    else -> SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = modes.size
+                    ) // middle items
+                }
             ) {
-                RadioButton(
-                    selected = (selectedMode == mode),
-                    onClick = { onModeSelected(mode) }
-                )
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+                Text(text = label, style = MaterialTheme.typography.bodyLarge)
             }
         }
     }
