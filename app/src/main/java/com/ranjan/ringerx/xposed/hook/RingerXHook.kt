@@ -26,7 +26,12 @@ class RingerXHook : IXposedHookLoadPackage {
 
     @Volatile
     private var cachedEvents: List<RingerEvent> = emptyList()
-    private var context: Context? = null
+
+    @Volatile
+    private var isInitialized = false
+
+    @Volatile
+    private var isTimeReceiverRegistered = false
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Intent.ACTION_TIME_TICK) checkAndApplyRingerMode(context)
@@ -48,11 +53,11 @@ class RingerXHook : IXposedHookLoadPackage {
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         // We only need to initialize once.
-                        if (context == null) {
-                            val ctx = param.thisObject as? Context ?: return
-                            context = ctx.applicationContext
-                            initialize(context!!)
-                        }
+                        if (isInitialized) return
+
+                        val ctx = param.thisObject as? Context ?: return
+                        initialize(ctx.applicationContext)
+                        isInitialized = true
                     }
                 }
             )
@@ -66,12 +71,14 @@ class RingerXHook : IXposedHookLoadPackage {
 
         // Initial load of events
         cachedEvents = loadEventsFromProvider(context)
+        updateBroadcastReceiver(context)
 
         // Register a ContentObserver to listen for changes in our app's preferences.
         val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
                 XposedBridge.log("$TAG: Detected a change in events, reloading.")
                 cachedEvents = loadEventsFromProvider(context)
+                updateBroadcastReceiver(context)
                 // After loading new events, check if a ringer mode change is needed right now.
                 // This handles the case where an event is created for the current minute.
                 checkAndApplyRingerMode(context)
@@ -89,12 +96,15 @@ class RingerXHook : IXposedHookLoadPackage {
      * events are scheduled.
      */
     private fun updateBroadcastReceiver(context: Context) {
-        if (cachedEvents.isNotEmpty()) {
+        val shouldRegister = cachedEvents.isNotEmpty()
+        if (shouldRegister && !isTimeReceiverRegistered) {
             XposedBridge.log("$TAG: Events scheduled, registering TIME_TICK receiver.")
             context.registerReceiver(timeTickReceiver, IntentFilter(Intent.ACTION_TIME_TICK))
-        } else {
+            isTimeReceiverRegistered = true
+        } else if (!shouldRegister && isTimeReceiverRegistered) {
             XposedBridge.log("$TAG: No events scheduled, unregistering TIME_TICK receiver.")
             runCatching { context.unregisterReceiver(timeTickReceiver) }
+            isTimeReceiverRegistered = false
         }
     }
 
@@ -138,7 +148,6 @@ class RingerXHook : IXposedHookLoadPackage {
         }.getOrNull() ?: emptyList()
 
         XposedBridge.log("$TAG: Successfully loaded ${newEvents.size} events.")
-        updateBroadcastReceiver(context)
         return newEvents
     }
 
