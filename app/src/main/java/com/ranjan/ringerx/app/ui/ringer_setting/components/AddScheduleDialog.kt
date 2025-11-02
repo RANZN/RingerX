@@ -32,7 +32,7 @@ fun AddScheduleDialog(
     val cal = Calendar.getInstance()
     val timeState = rememberTimePickerState(
         initialHour = cal.get(Calendar.HOUR_OF_DAY),
-        initialMinute = cal.get(Calendar.MINUTE) + 1,
+        initialMinute = cal.get(Calendar.MINUTE),
         is24Hour = false
     )
 
